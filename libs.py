@@ -4,6 +4,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import pandas as pd
+import random
 
 # # Define os parâmetros do problema
 num_clients = 495
