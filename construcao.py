@@ -1,5 +1,3 @@
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 from libs import *
 
 # Construção da heuristica da solução inicial
@@ -7,8 +5,6 @@ from libs import *
 
 ### A heuristica construtiva da solucao inicial será utilizar um numero de clusters definido pelo minimo de pontos de acesso (PA) 
 ### necessarios para atender a banda de consumo de todos os clientes (C)
-
-
 
 
 # Normalizar os dados
