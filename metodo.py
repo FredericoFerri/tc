@@ -67,7 +67,7 @@ def solution_check(new_solution, solution, neighborhood):
         return solution, neighborhood
 
 # Algoritmo para otimizar cada função objetivo individualmente
-def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=10, neighborhood_max = 2):
+def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=10000, neighborhood_max = 2):
 
     progress = {
         'fitness': np.zeros(max_iter),
@@ -88,7 +88,7 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
       progress['penalty'][i] = solution['penalty']
       #progress['fitness'][i] = solution['fitness']
       
-      print("NOVA Iteração ----")
+      #print("NOVA Iteração ----")
       solution = update_solution(solution)
 
       while neighborhood <= neighborhood_max:

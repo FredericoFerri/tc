@@ -11,7 +11,7 @@ def clients_check(solution, previous_solution = None):
     if clients >= (0.98 * num_clients) and clients <= num_clients:
         pass
     else:
-        clients_check(solution)
+        client_active(solution)
 
 # Estruturas de Vizinhança
 def swap_clients_between_pas(solution): # ESTRUTURA DE VIZINHANÇA DESABILITADA A PRINCIPIO 
@@ -43,16 +43,27 @@ def add_or_remove_pas(solution):
     new_solution = solution.copy()  # Criar uma cópia da solução atual
 
     # Selecionar aleatoriamente um número de PAs a adicionar ou remover
-    num_pas_to_add_or_remove = np.random.randint(1, num_pa_locations + 1)
+    num_pas_to_add_or_remove = 1#np.random.randint(1, num_pa_locations + 1)
 
     # Selecionar aleatoriamente quais PAs adicionar ou remover
     pa_indices = np.random.choice(np.arange(num_pa_locations), size=num_pas_to_add_or_remove, replace=False)
+
+    # ESCOLHER CINCO PA's menos importantes 
+    for i in range(num_pa_locations):
+        np.sum(solution['x'][i] * solution['client_bandwidth'])
+        
+        
+    # REMOVER PA's com menor quantidade de clientes 
+    # REMOVER PA's com menor uso da banda
+
+    # ESCOLHER CINCO PA'S COM ALTA DEMANDA E ADICIONAR PA PERTO 
+    # TRAÇAR SEGMENTO DE RETA ENTRE DOIS PA's  
 
     # Ativar ou desativar os PAs selecionados
     for pa_index in pa_indices:
         new_solution['y'][pa_index] = 1 - new_solution['y'][pa_index]
     
-    clients_check(solution)
+    client_active(solution)
 
     return new_solution
 
@@ -62,20 +73,15 @@ def shift_pa_positions(solution):
 
     # MUDAR GERAÇÃO DE NOVA POSIÇÃO
     # Gerar uma nova posição para cada PA
+    #---------------------------------------------
+    # alterar essa movimentação dos PA's
+    #---------------------------------------------
     new_pa_coordinates = np.random.randint(0, 80, size=(num_pa_locations, 2)) * 5  # 80 é o tamanho do grid em metros
 
     # Atualizar as coordenadas dos PAs na solução
     new_solution['pa_coordinates'] = new_pa_coordinates
 
-    # Recalcular as distâncias entre os clientes e os PAs com as novas posições
-    for i in range(num_pa_locations):
-        pa_x, pa_y = new_pa_coordinates[i]
-        for j in range(num_clients):
-            client_x, client_y = solution['client_coordinates'][j]
-            distance = np.sqrt((pa_x - client_x) ** 2 + (pa_y - client_y) ** 2)
-            new_solution['client_pa_distances'][i, j] = distance
-
-    clients_check(solution)
+    client_active(solution)
 
     return new_solution
 

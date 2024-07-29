@@ -1,5 +1,6 @@
 from libs import *
 import constraints
+from plot import plot_solution
 
 # Carrega os dados dos clientes do arquivo CSV
 def get_clients():
@@ -74,7 +75,7 @@ def initial_solution2(clients_data, solution):
     X_scaled = scaler.fit_transform(coordenadas)
 
     # Aplicar K-means com 10 clusters
-    kmeans_10 = KMeans(n_clusters=10, random_state=0)
+    kmeans_10 = KMeans(n_clusters=30, random_state=0)
     clusters_10 = kmeans_10.fit_predict(X_scaled)
     coordenadas['cluster_10'] = clusters_10 
 
@@ -109,6 +110,8 @@ def initial_solution2(clients_data, solution):
 
     if not constraints.constraint_min_clients_served(solution):
        print('erro!')
+
+    #plot_solution(solution)
 
     return solution
 
@@ -145,11 +148,14 @@ def client_active(solution):
 
     # Atribuir cada cliente ao PA mais próximo
     for j in range(num_clients):
-        client_x, client_y = client_coordinates[j]
-        distances_to_pas = np.sqrt(np.sum((active_pa_coordinates - np.array([client_x, client_y]))**2, axis=1))
+        client_x, client_y = client_coordinates[j] # coordenadas de cliente
+        distances_to_pas = np.sqrt(np.sum((active_pa_coordinates - np.array([client_x, client_y]))**2, axis=1)) # distância de cliente a PA's
         closest_pa_index = np.argmin(distances_to_pas)
-        original_pa_index = active_pa_indices[closest_pa_index]
-        solution['x'][original_pa_index, j] = 1 
+        closest_pa_distance = np.amin(distances_to_pas)
+        if(closest_pa_distance < pa_coverage):
+            original_pa_index = active_pa_indices[closest_pa_index]
+            solution['x'][original_pa_index, j] = 1 
+
 
 generate_solution(get_clients())
          
