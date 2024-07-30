@@ -21,8 +21,16 @@ def constraint_coverage(solution):
 
 def constraint_exposure(solution):
     # Restrição R4: Garantir que exposição acumulada de cada cliente à rede de PAs ativos seja no mínimo 5% do coeficiente de exposição
+    
+    pa_cover = pa_exposure * np.sum(solution['y'])
+    
     for j in range(num_clients):
-        if np.sum(pa_exposure * solution['y'] / solution['client_pa_distances'][:, j]) < 0.05 * exposure_coefficient:
+        client_cover = 0
+        for i in range(num_pa_locations):
+            if solution['y'][i] == 1:
+                if solution['client_pa_distances'][i, j] != 0:
+                    client_cover += pa_cover / solution['client_pa_distances'][i, j]
+        if client_cover < 0.05 * exposure_coefficient:
             return False
     return True
 

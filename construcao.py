@@ -9,6 +9,7 @@ def get_clients():
 
 # Função para gerar uma solução qualquer
 def generate_solution(clients_data, constructor_heuristic=True):
+    print("Gerar solucao")
     # Inicialize as variáveis de decisão
     solution = {
         'x': np.zeros((num_pa_locations, num_clients)),  # Variáveis de decisão para atribuição de clientes a PAs
@@ -66,6 +67,7 @@ def generate_solution(clients_data, constructor_heuristic=True):
     return solution
 
 def initial_solution2(clients_data, solution):
+    print("SOLUÇÃO INICIAL2")
 
     # Criar um DataFrame com as coordenadas
     coordenadas = pd.DataFrame(solution['client_coordinates'], columns=['x', 'y'])
@@ -74,44 +76,25 @@ def initial_solution2(clients_data, solution):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(coordenadas)
 
-    # Aplicar K-means com 10 clusters
-    kmeans_10 = KMeans(n_clusters=30, random_state=0)
-    clusters_10 = kmeans_10.fit_predict(X_scaled)
-    coordenadas['cluster_10'] = clusters_10 
+    # Aplicar K-means com 30 clusters
+    kmeans_30 = KMeans(n_clusters=30, random_state=0)
+    clusters_30 = kmeans_30.fit_predict(X_scaled)
+    coordenadas['cluster_30'] = clusters_30 
 
-    centroides = kmeans_10.cluster_centers_
+    centroides = kmeans_30.cluster_centers_
     centroides_originais = scaler.inverse_transform(centroides) # Reverter a normalização para obter as coordenadas originais   
 
     # Aplicar a função a cada elemento do array
     centroides_originais = np.vectorize(round_to_nearest_5)(centroides_originais)
     #print(centroides_originais)
 
-    # Popular solução com PA's
-    all_coordinates = []
-    for coord in centroides_originais:
-        all_coordinates.append(coord.tolist())  # Coordenada original
-        #all_coordinates.extend(generate_additional_coordinates(coord))  # Coordenadas adicionais
-        x, y = coord
-        left = max(0, x - 20)
-        right = min(400, x + 20)
-        all_coordinates.extend([[left, y], [right, y]])
+    solution['pa_coordinates'] = centroides_originais
 
-    solution['pa_coordinates'] = np.vstack(all_coordinates)
-
-    print(solution['pa_coordinates'])
-
-    # Ativar PA's que são centróides 
-    for i in range(num_pa_locations):
-       if i%3 == 0:
-          solution['y'][i] = 1
+    # Ativar todos os PA's 
+    solution['y'].fill(1)
 
     # Atribuir clientes aos PA's
     client_active(solution)
-
-    if not constraints.constraint_min_clients_served(solution):
-       print('erro!')
-
-    #plot_solution(solution)
 
     return solution
 
@@ -123,38 +106,42 @@ def round_to_nearest_5(x):
 def client_active(solution):
     
     client_coordinates = solution['client_coordinates']
-    active_pa_coordinates = []
     active_pa_indices = []
 
     # Coletar coordenadas dos PAs ativos e seus índices originais
     for i in range(num_pa_locations):
         if solution['y'][i] == 1:
-            active_pa_coordinates.append(solution['pa_coordinates'][i])
             active_pa_indices.append(i)
         if solution['y'][i] == 0:
            solution['x'][i] = np.zeros(num_clients)
 
-    # Convertendo a lista para um array numpy para cálculos de distância
-    active_pa_coordinates = np.array(active_pa_coordinates)
-
     # Verificar se há PAs ativos
-    if len(active_pa_coordinates) == 0:
+    if len(active_pa_indices) == 0:
         print("Nenhum PA ativo.")
         return
 
     # Inicializar a matriz de alocação
-    num_pas = len(solution['pa_coordinates'])
-    solution['x'] = np.zeros((num_pas, num_clients))
+    solution['x'] = np.zeros((num_pa_locations, num_clients))
 
-    # Atribuir cada cliente ao PA mais próximo
+    # Atribuir cada cliente ao PA ATIVO mais próximo
     for j in range(num_clients):
         client_x, client_y = client_coordinates[j] # coordenadas de cliente
-        distances_to_pas = np.sqrt(np.sum((active_pa_coordinates - np.array([client_x, client_y]))**2, axis=1)) # distância de cliente a PA's
-        closest_pa_index = np.argmin(distances_to_pas)
-        closest_pa_distance = np.amin(distances_to_pas)
-        if(closest_pa_distance < pa_coverage):
-            original_pa_index = active_pa_indices[closest_pa_index]
-            solution['x'][original_pa_index, j] = 1 
+
+        distance_to_all_pa = np.sqrt(np.sum((solution['pa_coordinates'] - np.array([client_x, client_y])) ** 2, axis=1))
+        solution['client_pa_distances'][:, j] = distance_to_all_pa #Armazena distâncias calculadas
+ 
+        # Inicializar a menor distância e o índice do PA mais próximo
+        closest_active_pa_distance = float('inf')
+        closest_active_pa_index = -1
+        # Iterar sobre todas as distâncias e encontrar a menor distância para um PA ativo
+        for i in range(num_pa_locations):
+            if solution['y'][i] == 1:  # Verifica se o PA é ativo
+                if distance_to_all_pa[i] < closest_active_pa_distance:
+                    closest_active_pa_distance = distance_to_all_pa[i]
+                    closest_active_pa_index = i
+
+        if(closest_active_pa_distance <= pa_coverage):
+            solution['x'][closest_active_pa_index, j] = 1 
 
 
 generate_solution(get_clients())

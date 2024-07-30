@@ -13,3 +13,5 @@ pa_capacity = 54  # Capacidade de cada PA
 pa_coverage = 85  # Raio de cobertura de cada PA
 pa_exposure = 1  # Exposição nominal do PA
 exposure_coefficient = 1  # Coeficiente de exposição
+
+from plot import *

@@ -8,8 +8,8 @@ from plot import plot_solution
 result = []
 progress = {}
 best_solution = {}
-for i in range(5):
-    best_solution[i], progress[i] = metodo.bvns_method(metodo.objective_function_1, constraints)
+for i in range(1): #ALTERAR RANGE 1 PARA 5
+    best_solution[i], progress[i] = metodo.bvns_method(metodo.objective_function_2, constraints)
     print("FITNESS: ", best_solution[i]['fitness'])
     print("PENALIDADE: ",best_solution[i]['penalty'])
     print("FIT+PEN: ",best_solution[i]['penalty_fitness'])

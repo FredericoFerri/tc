@@ -1,6 +1,7 @@
 from libs import *
 import construcao 
 from vizinhanca import neighborhood_change
+from plot import plot_solution
 
 # Função objetivo 1: Minimizar a quantidade de PAs ativos
 def objective_function_1(solution, constraints):
@@ -29,9 +30,11 @@ def objective_function_2(solution, constraints):
 
     # Calculo da função objetivo
     solution['fitness'] = np.sum(np.multiply(solution['client_pa_distances'], solution['x']))
+    print(f"FITNESS SOLUÇÃO: {solution['fitness']}")
 
     # Calculo das penalidades
     solution['penalty'] = penalty_method(solution, constraints)
+    print(f"PENALIDADE SOLUÇÃO: {solution['penalty']}")
 
     # Aplicação das penalidades
     solution['penalty_fitness'] = solution['penalty'] + solution['fitness']
@@ -44,8 +47,8 @@ def penalty_method(solution, constraints):
     iterador = 0
     for constraint in constraints:
       if not constraint(solution):
-          penalty += 100
-
+        print(f"Contraint problematica: {iterador}")
+        penalty += 1
       iterador += 1
 
     return penalty
@@ -79,6 +82,8 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
     solution = construcao.generate_solution(construcao.get_clients())
     solution = objective_function(solution, constraints)
 
+    exit()
+
     for i in range(max_iter):
 
       #print(f"iteração {i}:\n")
@@ -88,7 +93,6 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
       progress['penalty'][i] = solution['penalty']
       #progress['fitness'][i] = solution['fitness']
       
-      #print("NOVA Iteração ----")
       solution = update_solution(solution)
 
       while neighborhood <= neighborhood_max:
