@@ -8,15 +8,23 @@ def constraint_min_clients_served(solution):
 def constraint_capacity(solution):
     # Restrição R2: Garantir que a capacidade dos PAs ativos não seja violada
     for i in range(num_pa_locations):
-        if np.sum(solution['x'][i] * solution['client_bandwidth']) > pa_capacity:
-            return False
+        if solution['y'][i] == 1:  # Verifica se o PA está ativo
+            demanda = np.sum(solution['client_bandwidth'][solution['x'][i, :] == 1])
+            if demanda > pa_capacity:
+                return False
+            
     return True
 
 def constraint_coverage(solution):
     # Restrição R3: Garantir que PAs ativos só atendam clientes que estejam dentro do seu raio de cobertura
     for i in range(num_pa_locations):
-        if np.sum(solution['x'][i] * solution['client_pa_distances']) > pa_coverage:
-            return False
+        if solution['y'][i] == 1:
+            for j in range(num_clients):
+                # Verifica se o cliente está associado ao PA
+                if solution['x'][i, j] == 1:
+                    # Verifica se a distância do cliente ao PA é menor ou igual ao raio de cobertura
+                    if solution['client_pa_distances'][i, j] > pa_coverage:
+                        return False
     return True
 
 def constraint_exposure(solution):

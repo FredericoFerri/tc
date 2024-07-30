@@ -44,7 +44,7 @@ def objective_function_2(solution, constraints):
 # Aplicar as penalidades para as violações de restrições
 def penalty_method(solution, constraints):
     penalty = 0
-    iterador = 0
+    iterador = 1
     for constraint in constraints:
       if not constraint(solution):
         print(f"Contraint problematica: {iterador}")
@@ -52,9 +52,6 @@ def penalty_method(solution, constraints):
       iterador += 1
 
     return penalty
-
-def update_solution(new_solution):
-   return copy.deepcopy(new_solution)
 
 # Atualizar a melhor solução encontrada e altera a vizinhança se necessário
 def solution_check(new_solution, solution, neighborhood):
@@ -70,7 +67,7 @@ def solution_check(new_solution, solution, neighborhood):
         return solution, neighborhood
 
 # Algoritmo para otimizar cada função objetivo individualmente
-def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=10000, neighborhood_max = 2):
+def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=1, neighborhood_max = 1):
 
     progress = {
         'fitness': np.zeros(max_iter),
@@ -82,25 +79,18 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
     solution = construcao.generate_solution(construcao.get_clients())
     solution = objective_function(solution, constraints)
 
-    exit()
-
     for i in range(max_iter):
-
-      #print(f"iteração {i}:\n")
       neighborhood = 1
 
       progress['fitness'][i] = solution['fitness']
       progress['penalty'][i] = solution['penalty']
       #progress['fitness'][i] = solution['fitness']
-      
-      solution = update_solution(solution)
 
       while neighborhood <= neighborhood_max:
 
         new_solution = neighborhood_change(solution, neighborhood)
 
         # Avaliar a solução
-        
         new_solution = objective_function(new_solution, constraints)
 
         # Compara a solução nova com a atual com as soluções da vizinhança
@@ -108,7 +98,7 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
 
     print("\n----------------------------------------------------------\n")
 
-    solution = update_solution(solution)
+    solution = copy.deepcopy(solution)
     print("FIT   : ", solution['fitness'])
     print("SOMA Y: ", np.sum(solution['y']))
     return solution, progress

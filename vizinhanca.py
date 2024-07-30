@@ -14,13 +14,38 @@ def clients_check(solution, previous_solution = None):
         client_active(solution)
 
 # Estruturas de Vizinhança
-def swap_clients_between_pas(solution): # ESTRUTURA DE VIZINHANÇA DESABILITADA A PRINCIPIO 
+def swap_clients_between_pas(solution): 
     # Troca de Clientes entre PAs (Swap)
     new_solution = solution.copy()  # Criar uma cópia da solução atual
 
-    # Selecionar aleatoriamente dois PAs diferentes
-    pa_indices = np.random.choice(np.arange(num_pa_locations), size=2, replace=False)
-    pa1_index, pa2_index = pa_indices
+    # (1) Selecionar aleatoriamente um de cinco PA's com maior banda utilizada
+    # Calcula a demanda total para cada PA, considerando apenas PAs ativos
+    demanda_total = np.zeros(num_pa_locations)
+    for i in range(num_pa_locations):
+        if solution['y'][i] == 1:  # Verifica se o PA está ativo
+            demanda_total[i] = np.sum(solution['client_bandwidth'][solution['x'][i, :] == 1])
+
+    # Filtra apenas os PAs ativos e seus índices
+    ativos_indices = np.where(solution['y'] == 1)[0]
+    ativos_demanda = demanda_total[ativos_indices]
+
+    # Encontra os 5 PAs com maior demanda entre os ativos
+    top_5_indices = np.argsort(ativos_demanda)[-5:]  # Índices dos 5 maiores valores entre os ativos
+    top_5_ativos_indices = ativos_indices[top_5_indices]  # Índices dos 5 maiores valores no array original de PAs
+    top_5_demanda = ativos_demanda[top_5_indices]  # Demanda dos 5 PAs com maior demanda
+
+    # Escolher aleatoriamente um dos 5 PAs com maior demanda
+    selected_pa = np.random.choice(top_5_ativos_indices)
+
+    print(f"Demanda total por PA (considerando apenas ativos): {demanda_total}")
+    print(f"Índices dos PAs ativos: {ativos_indices}")
+    print(f"Índices dos 5 PAs ativos com maior demanda: {top_5_ativos_indices}")
+    print(f"Demanda dos 5 PAs com maior demanda: {top_5_demanda}")
+    print(f"PA selecionado aleatoriamente: {selected_pa}")
+    exit()
+
+    # Selecionar aleatoriamente um entre os cinco PA's mais próximos do PA selecionado (pa1_index)
+
 
     # Selecionar aleatoriamente um cliente atribuído ao PA1 e outro ao PA2
     client_indices_pa1 = np.where(solution['x'][pa1_index] == 1)[0]
@@ -35,6 +60,8 @@ def swap_clients_between_pas(solution): # ESTRUTURA DE VIZINHANÇA DESABILITADA 
         new_solution['x'][pa2_index, client_index_pa2] = 0
         new_solution['x'][pa1_index, client_index_pa2] = 1
         new_solution['x'][pa2_index, client_index_pa1] = 1
+
+    #reimplementar as distâncias entre clientes e PA's
 
     return new_solution
 
@@ -89,7 +116,7 @@ def neighborhood_change(solution, neighborhood):
 
   match neighborhood:
     case 1:
-        return shift_pa_positions(solution)
+        return swap_clients_between_pas(solution)
     case 2:
         return add_or_remove_pas(solution)
     #case 3:

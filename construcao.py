@@ -102,6 +102,16 @@ def initial_solution2(clients_data, solution):
 def round_to_nearest_5(x):
     return 5 * round(x / 5)
 
+def settle_distances_client_to_pa(solution):
+
+    # Calcula a distancia entre cada cliente e cada PA ativo
+    for i in range(num_pa_locations):
+      pa_x, pa_y = solution['pa_coordinates'][i]
+      for j in range(num_clients):
+        client_x, client_y = solution['client_coordinates'][j]
+        distance = np.sqrt((pa_x - client_x) ** 2 + (pa_y - client_y) ** 2)
+        solution['client_pa_distances'][i, j] = distance
+
 # Função para manejo de clientes entre PA's
 def client_active(solution):
     
@@ -123,13 +133,12 @@ def client_active(solution):
     # Inicializar a matriz de alocação
     solution['x'] = np.zeros((num_pa_locations, num_clients))
 
+    settle_distances_client_to_pa(solution) #calcula as distancias entre cliente e PA's (será importante para estruturas de vizinhança)
+
     # Atribuir cada cliente ao PA ATIVO mais próximo
     for j in range(num_clients):
-        client_x, client_y = client_coordinates[j] # coordenadas de cliente
+        distance_to_all_pa = solution['client_pa_distances'][:, j]
 
-        distance_to_all_pa = np.sqrt(np.sum((solution['pa_coordinates'] - np.array([client_x, client_y])) ** 2, axis=1))
-        solution['client_pa_distances'][:, j] = distance_to_all_pa #Armazena distâncias calculadas
- 
         # Inicializar a menor distância e o índice do PA mais próximo
         closest_active_pa_distance = float('inf')
         closest_active_pa_index = -1
