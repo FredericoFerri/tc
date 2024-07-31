@@ -16,17 +16,20 @@ def clients_check(solution, previous_solution = None):
 # Estruturas de Vizinhança
 def swap_clients_between_pas(solution): 
     # Troca de Clientes entre PAs (Swap)
-    new_solution = solution.copy()  # Criar uma cópia da solução atual
+    
+    new_solution = solution.copy() 
 
+    #------------------------------------------------------------------
     # (1) Selecionar aleatoriamente um de cinco PA's com maior banda utilizada
+    #------------------------------------------------------------------
     # Calcula a demanda total para cada PA, considerando apenas PAs ativos
     demanda_total = np.zeros(num_pa_locations)
     for i in range(num_pa_locations):
-        if solution['y'][i] == 1:  # Verifica se o PA está ativo
-            demanda_total[i] = np.sum(solution['client_bandwidth'][solution['x'][i, :] == 1])
+        if new_solution['y'][i] == 1:  # Verifica se o PA está ativo
+            demanda_total[i] = np.sum(new_solution['client_bandwidth'][new_solution['x'][i, :] == 1])
 
     # Filtra apenas os PAs ativos e seus índices
-    ativos_indices = np.where(solution['y'] == 1)[0]
+    ativos_indices = np.where(new_solution['y'] == 1)[0]
     ativos_demanda = demanda_total[ativos_indices]
 
     # Encontra os 5 PAs com maior demanda entre os ativos
@@ -34,34 +37,45 @@ def swap_clients_between_pas(solution):
     top_5_ativos_indices = ativos_indices[top_5_indices]  # Índices dos 5 maiores valores no array original de PAs
     top_5_demanda = ativos_demanda[top_5_indices]  # Demanda dos 5 PAs com maior demanda
 
-    # Escolher aleatoriamente um dos 5 PAs com maior demanda
-    selected_pa = np.random.choice(top_5_ativos_indices)
+    pa1_index = np.random.choice(top_5_ativos_indices) 
 
-    print(f"Demanda total por PA (considerando apenas ativos): {demanda_total}")
-    print(f"Índices dos PAs ativos: {ativos_indices}")
-    print(f"Índices dos 5 PAs ativos com maior demanda: {top_5_ativos_indices}")
-    print(f"Demanda dos 5 PAs com maior demanda: {top_5_demanda}")
-    print(f"PA selecionado aleatoriamente: {selected_pa}")
-    exit()
+    #------------------------------------------------------------------
+    # (2) Selecionar o PA com menor demanda dentre os três mais próximos de pa1_index
+    #------------------------------------------------------------------
+    distances = np.sqrt(np.sum((new_solution['pa_coordinates'] - new_solution['pa_coordinates'][pa1_index]) ** 2, axis=1))
 
-    # Selecionar aleatoriamente um entre os cinco PA's mais próximos do PA selecionado (pa1_index)
+    ativos_indices = ativos_indices[ativos_indices != pa1_index]
 
+    # Calcula as distâncias para os PAs ativos excluindo o PA selecionado
+    distances_to_ativos = distances[ativos_indices]
 
-    # Selecionar aleatoriamente um cliente atribuído ao PA1 e outro ao PA2
-    client_indices_pa1 = np.where(solution['x'][pa1_index] == 1)[0]
-    client_indices_pa2 = np.where(solution['x'][pa2_index] == 1)[0]
+    # Encontra os índices dos três PAs ativos mais próximos
+    top_3_indices = np.argsort(distances_to_ativos)[:3] 
 
-    if len(client_indices_pa1) > 0 and len(client_indices_pa2) > 0:
-        client_index_pa1 = np.random.choice(client_indices_pa1)
-        client_index_pa2 = np.random.choice(client_indices_pa2)
+    demanda_banda = np.zeros(3)
+    # Calcula a demanda de banda consumida para cada um dos 3 PAs mais próximos
+    for idx, pa in enumerate(top_3_indices):
+        demanda = np.sum(new_solution['client_bandwidth'][new_solution['x'][pa, :] == 1])
+        demanda_banda[idx] = demanda
 
-        # Realizar a troca dos clientes entre os PAs
-        new_solution['x'][pa1_index, client_index_pa1] = 0
-        new_solution['x'][pa2_index, client_index_pa2] = 0
-        new_solution['x'][pa1_index, client_index_pa2] = 1
-        new_solution['x'][pa2_index, client_index_pa1] = 1
+    pa_menor_demanda_idx = np.argmin(demanda_banda)
 
-    #reimplementar as distâncias entre clientes e PA's
+    pa2_index = top_3_indices[pa_menor_demanda_idx] 
+    
+    #------------------------------------------------------------------
+    # (3) escolher três clientes de pa1_index e passar para pa2_index
+    #------------------------------------------------------------------
+    clients_pa1 = np.where(new_solution['x'][pa1_index, :] == 1)[0]
+
+    # encontra os índices relativos dos três clientes
+    clients_to_pa2_relative = np.argsort(new_solution['client_pa_distances'][pa2_index, clients_pa1])[:3]
+
+    #encontra os índices dos três clientes de pa1 mais próximos de pa2
+    clients_to_pa2 = clients_pa1[clients_to_pa2_relative]
+    
+    #swap de clientes
+    new_solution['x'][pa1_index, clients_to_pa2] = 0
+    new_solution['x'][pa2_index, clients_to_pa2] = 1
 
     return new_solution
 
