@@ -77,7 +77,7 @@ def initial_solution2(clients_data, solution):
     X_scaled = scaler.fit_transform(coordenadas)
 
     # Aplicar K-means com 30 clusters
-    kmeans_30 = KMeans(n_clusters=30, random_state=0)
+    kmeans_30 = KMeans(n_clusters=30, random_state=random.randint(0, 10000))
     clusters_30 = kmeans_30.fit_predict(X_scaled)
     coordenadas['cluster_30'] = clusters_30 
 

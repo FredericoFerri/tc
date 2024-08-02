@@ -24,17 +24,17 @@ def objective_function_1(solution, constraints):
 # Função objetivo 2: Minimizar a soma total das distâncias entre os PAs ativos e clientes atendidos
 def objective_function_2(solution, constraints):
 
-    solution['fitness'] = 0
-    solution['penalty'] = 0
-    solution['penalty_fitness'] = 0
+    #solution['fitness'] = 0
+    #solution['penalty'] = 0
+    #solution['penalty_fitness'] = 0
 
     # Calculo da função objetivo
     solution['fitness'] = np.sum(np.multiply(solution['client_pa_distances'], solution['x']))
-    print(f"FITNESS SOLUÇÃO: {solution['fitness']}")
+    #print(f"FITNESS SOLUÇÃO: {solution['fitness']}")
 
     # Calculo das penalidades
     solution['penalty'] = penalty_method(solution, constraints)
-    print(f"PENALIDADE SOLUÇÃO: {solution['penalty']}")
+    #print(f"PENALIDADE SOLUÇÃO: {solution['penalty']}")
 
     # Aplicação das penalidades
     solution['penalty_fitness'] = solution['penalty'] + solution['fitness']
@@ -67,7 +67,7 @@ def solution_check(new_solution, solution, neighborhood):
         return solution, neighborhood
 
 # Algoritmo para otimizar cada função objetivo individualmente
-def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=1, neighborhood_max = 1):
+def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=1000, neighborhood_max = 1):
 
     progress = {
         'fitness': np.zeros(max_iter),
@@ -98,7 +98,7 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
 
     print("\n----------------------------------------------------------\n")
 
-    solution = copy.deepcopy(solution)
+    #solution = copy.deepcopy(solution)
     print("FIT   : ", solution['fitness'])
     print("SOMA Y: ", np.sum(solution['y']))
     return solution, progress
