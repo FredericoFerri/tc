@@ -1,5 +1,5 @@
 from libs import *
-from construcao import client_active
+from construcao import client_active, settle_distance_for_single_pa
 
 def clients_check(solution, previous_solution = None):
 
@@ -68,10 +68,17 @@ def swap_clients_between_pas(solution):
 
     #encontra os índices dos três clientes de pa1 mais próximos de pa2
     clients_to_pa2 = clients_pa1[clients_to_pa2_relative]
+
+    #------------------------------------------------------------------
+    # (4) verificar clientes elegíveis para swap
+    #------------------------------------------------------------------
+    #Verificação de cobertura
+    clients_to_pa2 = clients_to_pa2[new_solution['client_pa_distances'][pa2_index, clients_to_pa2] <= pa_coverage]
     
     #swap de clientes
-    new_solution['x'][pa1_index, clients_to_pa2] = 0
-    new_solution['x'][pa2_index, clients_to_pa2] = 1
+    if clients_to_pa2.size > 0:
+        new_solution['x'][pa1_index, clients_to_pa2] = 0
+        new_solution['x'][pa2_index, clients_to_pa2] = 1
 
     return new_solution
 
@@ -79,39 +86,191 @@ def add_or_remove_pas(solution):
     # Adição ou Remoção de PAs
     new_solution = solution.copy()  # Criar uma cópia da solução atual
 
-    # Selecionar aleatoriamente um número de PAs a adicionar ou remover
-    num_pas_to_add_or_remove = 1#np.random.randint(1, num_pa_locations + 1)
-
-    # Selecionar aleatoriamente quais PAs adicionar ou remover
-    pa_indices = np.random.choice(np.arange(num_pa_locations), size=num_pas_to_add_or_remove, replace=False)
-
-    # ESCOLHER CINCO PA's menos importantes 
+    #------------------------------------------------------------------
+    # (1) Selecionar aleatoriamente um de cinco PA's com menor banda utilizada
+    #------------------------------------------------------------------
+    # Calcula a demanda total para cada PA, considerando apenas PAs ativos
+    demanda_total = np.zeros(num_pa_locations)
     for i in range(num_pa_locations):
-        np.sum(solution['x'][i] * solution['client_bandwidth'])
-        
-        
-    # REMOVER PA's com menor quantidade de clientes 
-    # REMOVER PA's com menor uso da banda
+        if new_solution['y'][i] == 1:  # Verifica se o PA está ativo
+            demanda_total[i] = np.sum(new_solution['client_bandwidth'][new_solution['x'][i, :] == 1])
 
-    # ESCOLHER CINCO PA'S COM ALTA DEMANDA E ADICIONAR PA PERTO 
-    # TRAÇAR SEGMENTO DE RETA ENTRE DOIS PA's  
+    # Filtra apenas os PAs ativos e seus índices
+    ativos_indices = np.where(new_solution['y'] == 1)[0]
+    ativos_demanda = demanda_total[ativos_indices]
 
-    # Ativar ou desativar os PAs selecionados
-    for pa_index in pa_indices:
-        new_solution['y'][pa_index] = 1 - new_solution['y'][pa_index]
+    # Encontra os 5 PAs com menor demanda entre os ativos
+    top_5_less_indices = np.argsort(ativos_demanda)[:5]  # Índices dos 5 menores valores entre os ativos
+    top_5_ativos_indices = ativos_indices[top_5_less_indices]  # Índices dos 5 maiores valores no array original de PAs
+    top_5_demanda = ativos_demanda[top_5_less_indices]  # Demanda dos 5 PAs com maior demanda
+
+    pa1_index = np.random.choice(top_5_ativos_indices)
+
+    #------------------------------------------------------------------
+    # (2) Selecionar o PA com menor demanda dentre os três mais próximos de pa1_index
+    #------------------------------------------------------------------
+    distances = np.sqrt(np.sum((new_solution['pa_coordinates'] - new_solution['pa_coordinates'][pa1_index]) ** 2, axis=1))
+
+    ativos_indices = ativos_indices[ativos_indices != pa1_index]
+
+    # Calcula as distâncias para os PAs ativos excluindo o PA selecionado
+    distances_to_ativos = distances[ativos_indices]
+
+    # Encontra os índices dos três PAs ativos mais próximos
+    top_3_indices = np.argsort(distances_to_ativos)[:3] 
+
+    if len(top_3_indices) == 0:
+        print(f"new_solution['fitness] = {new_solution['fitness']}")
+        print(f"distance_to_ativos = {distances_to_ativos}")
+        print(f"ativos_indices = {ativos_indices}")
+
+    else:
+        demanda_banda = np.zeros(3)
+        # Calcula a demanda de banda consumida para cada um dos 3 PAs mais próximos
+        for idx, pa in enumerate(top_3_indices):
+            demanda = np.sum(new_solution['client_bandwidth'][new_solution['x'][pa, :] == 1])
+            demanda_banda[idx] = demanda
+
+        pa_menor_demanda_idx = np.argmin(demanda_banda)
+
+        pa2_index = top_3_indices[pa_menor_demanda_idx] 
+
+    #------------------------------------------------------------------
+    # (3) Posicionar um PA entre os dois PA's 
+    #------------------------------------------------------------------  
+    pa1_to_be_removed_coords = new_solution['pa_coordinates'][pa1_index]
+    pa2_to_keep_coords = new_solution['pa_coordinates'][pa2_index]
+
+    # direção de movimento do PA com base em ponto médio entre clientes
+    new_pa_coords = (pa1_to_be_removed_coords + pa2_to_keep_coords) / 2
+    new_pa_coords = np.clip(new_pa_coords, 0, None)
+    new_pa_coords = np.round(new_pa_coords / 5) * 5 #arredondamento para grid 5x5
+
+    #------------------------------------------------------------------
+    # (4) Adicionar PA entre PA's OU Desativar PA1 e Alterar as distâncias entre clientes e PA na solução 
+    #------------------------------------------------------------------  
+
+    distance_between_pas = distances[pa2_index]
     
-    client_active(solution)
+    new_pa_index = 0
+    if distance_between_pas >= pa_coverage:  
+    #Adicionar PA entre os dois PA's
+        if np.any(new_solution['y'] == 0):
+        # Ativa PA inativo e o posiciona 
+            # Encontra os índices dos PAs inativos
+            inactive_indexes = np.where(new_solution['y'] == 0)[0]
+    
+            # Calcula a soma das distâncias para cada PA inativo
+            sum_distances = np.sum(new_solution['client_pa_distances'][inactive_indexes, :], axis=1)
+    
+            # Encontra o índice do PA inativo com a maior soma das distâncias
+            pa_max_sum_distances = inactive_indexes[np.argmax(sum_distances)]
+            new_pa_index = pa_max_sum_distances
+
+            # Ativação de PA
+            new_solution['y'][new_pa_index] = 1
+
+        else:
+        # Altera posição de PA ativo 
+            # Encontra o PA que atende menos clientes
+            total_clients = np.zeros(num_pa_locations)
+    
+            for i in range(num_pa_locations):
+                total_clients[i] = np.sum(new_solution['x'][i, :])
+            
+            # Encontrar o PA ativo com a menor quantidade de clientes
+            pa_min_clients_index = np.argmin(total_clients)
+            new_pa_index = pa_min_clients_index
+  
+        # Adicionar PA entre pa1 e pa2
+        new_solution['pa_coordinates'][new_pa_index] = new_pa_coords  
+        
+    else:
+    #Remove PA1 e move PA2 para new_pa_coords
+        new_solution['y'][pa1_index] = 0
+        new_solution['pa_coordinates'][pa2_index] = new_pa_coords
+        new_pa_index = pa2_index
+
+    settle_distance_for_single_pa(new_solution,new_pa_index)
+    client_active(new_solution)
 
     return new_solution
 
-def swap_clients_per_distance(solution):
-    new_solution = solution.copy() 
+def get_pas_closer(solution):
+    # Aproxima PAs com com baixo uso de banda a PA's com alto uso de banda
+    new_solution = solution.copy()  # Criar uma cópia da solução atual
+
+    #------------------------------------------------------------------
+    # (1) Selecionar aleatoriamente um de cinco PA's com maior banda utilizada
+    #------------------------------------------------------------------
+    # Calcula a demanda total para cada PA, considerando apenas PAs ativos
+    demanda_total = np.zeros(num_pa_locations)
+    for i in range(num_pa_locations):
+        if new_solution['y'][i] == 1:  # Verifica se o PA está ativo
+            demanda_total[i] = np.sum(new_solution['client_bandwidth'][new_solution['x'][i, :] == 1])
+
+    # Filtra apenas os PAs ativos e seus índices
+    ativos_indices = np.where(new_solution['y'] == 1)[0]
+    ativos_demanda = demanda_total[ativos_indices]
+
+    # Encontra os 5 PAs com maior demanda entre os ativos
+    top_5_indices = np.argsort(ativos_demanda)[-5:]  # Índices dos 5 maiores valores entre os ativos
+    top_5_ativos_indices = ativos_indices[top_5_indices]  # Índices dos 5 maiores valores no array original de PAs
+    top_5_demanda = ativos_demanda[top_5_indices]  # Demanda dos 5 PAs com maior demanda
+
+    pa1_index = np.random.choice(top_5_ativos_indices)
+
+    #------------------------------------------------------------------
+    # (2) Selecionar o PA com menor demanda dentre os três mais próximos de pa1_index
+    #------------------------------------------------------------------
+    distances = np.sqrt(np.sum((new_solution['pa_coordinates'] - new_solution['pa_coordinates'][pa1_index]) ** 2, axis=1))
+
+    ativos_indices = ativos_indices[ativos_indices != pa1_index]
+
+    # Calcula as distâncias para os PAs ativos excluindo o PA selecionado
+    distances_to_ativos = distances[ativos_indices]
+
+    # Encontra os índices dos três PAs ativos mais próximos
+    top_3_indices = np.argsort(distances_to_ativos)[:3] 
+
+    demanda_banda = np.zeros(3)
+    # Calcula a demanda de banda consumida para cada um dos 3 PAs mais próximos
+    for idx, pa in enumerate(top_3_indices):
+        demanda = np.sum(new_solution['client_bandwidth'][new_solution['x'][pa, :] == 1])
+        demanda_banda[idx] = demanda
+
+    pa_menor_demanda_idx = np.argmin(demanda_banda)
+
+    pa2_index = top_3_indices[pa_menor_demanda_idx] 
+
+    #------------------------------------------------------------------
+    # (3) Aproximar PA de menor banda para PA de maior banda
+    #------------------------------------------------------------------
+    pa1_bigger_bandwidth_coords = new_solution['pa_coordinates'][pa1_index]
+    pa2_lower_bandwidth_coords = new_solution['pa_coordinates'][pa2_index]
+
+    # direção de movimento do PA com base em ponto médio entre clientes
+    new_pa_coords = (pa1_bigger_bandwidth_coords + pa2_lower_bandwidth_coords) / 3
+    new_pa_coords = np.clip(new_pa_coords, 0, None)
+    new_pa_coords = np.round(new_pa_coords / 5) * 5 #arredondamento para grid 5x5
+
+    #------------------------------------------------------------------
+    # (4) Alterar as coordenadas de PA e distâncias entre clientes e PA na solução 
+    #------------------------------------------------------------------
+    # Atualizar a posição do PA
+    new_solution['pa_coordinates'][pa2_index] = new_pa_coords
+
+    # Atualizar as distâncias de PA a clientes
+    settle_distance_for_single_pa(new_solution,pa2_index)
+
+    client_active(new_solution)
 
     return new_solution
-
+    
 def shift_pa_positions(solution):
     # Movimento dos PAs (Shift)
     new_solution = solution.copy()  # Criar uma cópia da solução atual
+    num_pa_locations = len(new_solution['pa_coordinates'])  # Definindo o número de PAs a partir das coordenadas
  
     #------------------------------------------------------------------
     # (1) Obter cinco PA's com maior variância de distâncias entre clientes e PA e escolher aleatoriamente um deles
@@ -120,7 +279,9 @@ def shift_pa_positions(solution):
     variancia_distancias = np.zeros(num_pa_locations)
     for i in range(num_pa_locations):
         if new_solution['y'][i] == 1:
-            variancia_distancias[i] = np.var(new_solution['client_pa_distances'][i, new_solution['x'][i, :] == 1])
+            pa_clients = new_solution['x'][i, :] == 1
+            if np.sum(pa_clients) > 1:  # Verifica se o PA tem mais de um cliente
+                variancia_distancias[i] = np.var(new_solution['client_pa_distances'][i, pa_clients])
 
     # Filtrar apenas os PAs ativos e seus índices
     ativos_indices = np.where(new_solution['y'] == 1)[0]
@@ -144,14 +305,14 @@ def shift_pa_positions(solution):
     # Dois clientes mais próximos entre si
     client1_index = 0
     client2_index = 0
-    min_distance = 1000
+    min_distance = float('inf')
     for i in range(len(most_distant_clients_Index)):
         for j in range(i + 1, len(most_distant_clients_Index)):
             client1_coords = new_solution['client_coordinates'][most_distant_clients_Index[i]]
             client2_coords = new_solution['client_coordinates'][most_distant_clients_Index[j]]
             distance = np.sqrt((client1_coords[0] - client2_coords[0]) ** 2 + (client1_coords[1] - client2_coords[1]) ** 2)
             if distance < min_distance: 
-                max_distance = distance
+                min_distance = distance
                 client1_index = most_distant_clients_Index[i]
                 client2_index = most_distant_clients_Index[j]
 
@@ -169,16 +330,17 @@ def shift_pa_positions(solution):
     if direction_norm != 0:
         direction /= direction_norm
 
-    move_distance = max_distance / 2 
+    distance_client1 = new_solution['client_pa_distances'][selected_pa, client1_index]
+    distance_client2 = new_solution['client_pa_distances'][selected_pa, client2_index]
+    move_distance = (distance_client1 + distance_client2) / 3  
+
     new_pa_coords = pa_coords + direction * (move_distance) 
     new_pa_coords = np.clip(new_pa_coords, 0, None)
     new_pa_coords = np.round(new_pa_coords / 5) * 5 #arredondamento para grid 5x5
 
-    #print(f"max_distance: {max_distance}")
-    #print(f"Coordenadas originais do PA: {pa_coords}")
-    #print(f"Ponto médio entre os clientes: {mid_point}")
-    #print(f"Nova posição do PA antes do arredondamento: {new_pa_coords}")
-    #print(f"Nova posição do PA após arredondamento: {new_pa_coords}")
+    # Verificar se new_pa_coords contém valores válidos
+    if np.any(np.isnan(new_pa_coords)) or np.any(np.isinf(new_pa_coords)):
+        raise ValueError("Coordenadas inválidas para o novo PA: {}".format(new_pa_coords))
 
     #------------------------------------------------------------------
     # (4) Alterar as coordenadas de PA e distâncias entre clientes e PA na solução 
@@ -187,11 +349,7 @@ def shift_pa_positions(solution):
     new_solution['pa_coordinates'][selected_pa] = new_pa_coords
 
     # Atualizar as distâncias de PA a clientes
-    for j in range(num_clients):
-        pa_x, pa_y = new_solution['pa_coordinates'][selected_pa]
-        client_x, client_y = new_solution['client_coordinates'][j]
-        distance = np.sqrt((pa_x - client_x) ** 2 + (pa_y - client_y) ** 2)
-        new_solution['client_pa_distances'][selected_pa, j] = distance
+    settle_distance_for_single_pa(new_solution,selected_pa)
 
     client_active(new_solution)
 
@@ -202,10 +360,17 @@ def neighborhood_change(solution, neighborhood):
   #ordem swap_clients_between_pas >> shift_pa_positions >> add_or_remove_pas
   match neighborhood:
     case 1:
+        return swap_clients_between_pas(solution) 
+    case 2:
         return shift_pa_positions(solution)
+    case 3:
+        return add_or_remove_pas(solution)
+
+#def neighborhood_change(solution, neighborhood):
+  
+  #ordem swap_clients_between_pas >> shift_pa_positions >> add_or_remove_pas
+  #match neighborhood:
+    #case 1:
+        #return shift_pa_positions(solution) 
     #case 2:
-        #return 
-    #case 3:
-        #return shift_pa_positions(solution)
-        #return swap_clients_between_pas(solution)
-        #return add_or_remove_pas(solution)
+        #return add_or_remove_pas(solution)    

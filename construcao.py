@@ -8,7 +8,7 @@ def get_clients():
   return clients
 
 # Função para gerar uma solução qualquer
-def generate_solution(clients_data, constructor_heuristic=True):
+def generate_solution(clients_data, initial_solution,constructor_heuristic=True):
     print("Gerar solucao")
     # Inicialize as variáveis de decisão
     solution = {
@@ -31,7 +31,10 @@ def generate_solution(clients_data, constructor_heuristic=True):
     solution['client_bandwidth'] = clients_data[:, 2]
 
     if constructor_heuristic:
-      return initial_solution2(clients_data, solution)
+      if(initial_solution==1):
+         return initial_solution1(solution)
+      if(initial_solution==2):
+         return initial_solution2(solution)
 
     # CÓDIGO SERA EXECUTADO SE: constructor_heuristic=False
     # Gerar coordenadas aleatorias para os PAs com resolução de 5 metros
@@ -66,6 +69,46 @@ def generate_solution(clients_data, constructor_heuristic=True):
 
     return solution
 
+def initial_solution1(solution):
+    print("SOLUÇÃO INICIAL1")
+
+    # Criar um DataFrame com as coordenadas
+    coordenadas = pd.DataFrame(solution['client_coordinates'], columns=['x', 'y'])
+
+    # Normalizar os dados
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(coordenadas)
+
+    # Aplicar K-means com 30 clusters
+    kmeans_30 = KMeans(n_clusters=30, random_state=random.randint(0, 10000))
+    clusters_30 = kmeans_30.fit_predict(X_scaled)
+    coordenadas['cluster_30'] = clusters_30 
+
+    centroides = kmeans_30.cluster_centers_
+    centroides_originais = scaler.inverse_transform(centroides) # Reverter a normalização para obter as coordenadas originais   
+
+    # Aplicar a função a cada elemento do array
+    centroides_originais = np.vectorize(round_to_nearest_5)(centroides_originais)
+    #print(centroides_originais)
+
+    solution['pa_coordinates'] = centroides_originais
+
+    settle_distances_client_to_pa(solution)
+
+    # Ativa 15 PA's aleatoriamente
+    num_active_pas = np.random.randint(10, 16)
+    active_indices = np.random.choice(num_pa_locations, num_active_pas, replace=False)
+
+    # Ative os PAs correspondentes aos índices gerados
+    solution['y'][active_indices] = 1
+
+    # Atribuir clientes aos PA's
+    client_active(solution)
+
+    plot_solution(solution)
+
+    return solution
+
 def initial_solution2(clients_data, solution):
     print("SOLUÇÃO INICIAL2")
 
@@ -93,24 +136,30 @@ def initial_solution2(clients_data, solution):
     # Ativar todos os PA's 
     solution['y'].fill(1)
 
+    settle_distances_client_to_pa(solution)
+
     # Atribuir clientes aos PA's
     client_active(solution)
+
+    plot_solution(solution)
 
     return solution
 
 # Função para arredondar para o múltiplo de 5 mais próximo
 def round_to_nearest_5(x):
-    return 5 * round(x / 5)
+    return 5 * np.round(x / 5)
 
-def settle_distances_client_to_pa(solution):
-
-    # Calcula a distancia entre cada cliente e cada PA ativo
-    for i in range(num_pa_locations):
-      pa_x, pa_y = solution['pa_coordinates'][i]
-      for j in range(num_clients):
+def settle_distance_for_single_pa(solution, pa_index):
+   pa_x, pa_y = solution['pa_coordinates'][pa_index]
+   for j in range(num_clients):
         client_x, client_y = solution['client_coordinates'][j]
         distance = np.sqrt((pa_x - client_x) ** 2 + (pa_y - client_y) ** 2)
-        solution['client_pa_distances'][i, j] = distance
+        solution['client_pa_distances'][pa_index, j] = distance
+
+def settle_distances_client_to_pa(solution):
+    # Calcula a distancia entre cada cliente e cada PA
+    for i in range(num_pa_locations):
+      settle_distance_for_single_pa(solution,i)
 
 # Função para manejo de clientes entre PA's
 def client_active(solution):
@@ -152,6 +201,4 @@ def client_active(solution):
         if(closest_active_pa_distance <= pa_coverage):
             solution['x'][closest_active_pa_index, j] = 1 
 
-
-generate_solution(get_clients())
          
