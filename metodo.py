@@ -56,7 +56,7 @@ def penalty_method(solution, constraints):
     iterador = 1
     for constraint in constraints:
       if not constraint(solution):
-        print(f"Contraint problematica: {iterador}")
+        #print(f"Contraint problematica: {iterador}")
         penalty += 1
       iterador += 1
 
@@ -70,8 +70,10 @@ def solution_check(new_solution, solution):
 
     # Aceita se a penalidade for a mesma e o fitness for melhor
     if new_solution['penalty'] == solution['penalty'] and new_solution['fitness'] <= solution['fitness']:
-        return True
-
+        if (np.sum(new_solution['x']) >= np.sum(solution['x'])) or np.sum(new_solution['x']) >= (0.98 * num_clients) :
+            return True
+        else:
+           return False
     return False
     
 # Algoritmo para otimizar cada função objetivo individualmente
