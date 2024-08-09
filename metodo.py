@@ -6,8 +6,8 @@ from plot import plot_solution
 # Função objetivo 1: Minimizar a quantidade de PAs ativos
 def objective_function_1(solution, constraints):
 
-    #solution['fitness'] = 0
-    #solution['penalty'] = 0
+    solution['fitness'] = 0
+    solution['penalty'] = 0
     #solution['penalty_fitness'] = 0
 
     # Calculo da função objetivo
@@ -19,7 +19,6 @@ def objective_function_1(solution, constraints):
     # Aplicação das penalidades
     solution['penalty_fitness'] = solution['penalty'] + solution['fitness']
 
-    return solution
 
 # Função objetivo 2: Minimizar a soma total das distâncias entre os PAs ativos e clientes atendidos
 def objective_function_2(solution, constraints):
@@ -50,7 +49,6 @@ def objective_function_2(solution, constraints):
     # Aplicação das penalidades
     solution['penalty_fitness'] = solution['penalty'] + solution['fitness']
 
-    return solution
 
 # Aplicar as penalidades para as violações de restrições
 def penalty_method(solution, constraints):
@@ -58,7 +56,7 @@ def penalty_method(solution, constraints):
     iterador = 1
     for constraint in constraints:
       if not constraint(solution):
-        #print(f"Contraint problematica: {iterador}")
+        print(f"Contraint problematica: {iterador}")
         penalty += 1
       iterador += 1
 
@@ -66,14 +64,16 @@ def penalty_method(solution, constraints):
 
 # Atualizar a melhor solução encontrada e altera a vizinhança se necessário
 def solution_check(new_solution, solution):
-    
+    # Aceita se a nova solução tiver menor penalidade
     if new_solution['penalty'] < solution['penalty']:
-       return True
-    elif new_solution['fitness'] < solution['fitness'] and new_solution['penalty'] == solution['penalty']:
-       return True
-    else:
-       return False
+        return True
 
+    # Aceita se a penalidade for a mesma e o fitness for melhor
+    if new_solution['penalty'] == solution['penalty'] and new_solution['fitness'] <= solution['fitness']:
+        return True
+
+    return False
+    
 # Algoritmo para otimizar cada função objetivo individualmente
 def bvns_method(objective_function, constraints, construct_heuristc=False, max_iter=1000, neighborhood_max = 3):
 
@@ -83,12 +83,8 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
         'penalty_fitness': np.zeros(max_iter)
     }
 
-    # Gerar uma solução aleatória viável
-    if(objective_function==objective_function_1):
-        solution = construcao.generate_solution(construcao.get_clients(),1)
-    elif(objective_function==objective_function_2):
-        solution = construcao.generate_solution(construcao.get_clients(),2)
-    solution = objective_function(solution, constraints)
+    solution = construcao.generate_solution(construcao.get_clients())
+    objective_function(solution, constraints)
 
     for i in range(max_iter):
       print(i)
@@ -102,21 +98,23 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
         new_solution = neighborhood_change(solution, neighborhood)
 
         # Avaliar a solução
-        new_solution = objective_function(new_solution, constraints)
+        objective_function(new_solution, constraints)
 
         # Compara a solução nova com a atual com as soluções da vizinhança
         if solution_check(new_solution, solution):
-            solution = new_solution
-            plot_solution(solution)
+            print(f"solution['fitness']: {solution['fitness']}")
+            print(f"solution['penalty']: {solution['penalty']}")
+            print(f"Num PA's: {np.sum(solution['y'])}")
+            print(f"solution['y']: {solution['y']}")
+            solution = copy.deepcopy(new_solution)
+            print(f"new_solution['fitness']: {solution['fitness']}")
+            print(f"new_solution['penalty']: {solution['penalty']}")
+            print(f"new_solution Num PA's: {np.sum(solution['y'])}")
+            print(f"new_solution['y']: {solution['y']}")
+            #plot_solution(solution)
             #neighborhood = 1
         #else:
         neighborhood += 1
-
-
+    
     print("\n----------------------------------------------------------\n")
-
-    #solution = copy.deepcopy(solution)
-    print("FIT   : ", np.sum(solution['y']))
-    print("SOMA Y: ", np.sum(solution['y']))
-    print(f"PENALIDADE: {solution['penalty']}")
     return solution, progress

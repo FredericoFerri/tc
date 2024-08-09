@@ -8,7 +8,7 @@ def get_clients():
   return clients
 
 # Função para gerar uma solução qualquer
-def generate_solution(clients_data, initial_solution,constructor_heuristic=True):
+def generate_solution(clients_data,constructor_heuristic=True):
     print("Gerar solucao")
     # Inicialize as variáveis de decisão
     solution = {
@@ -31,41 +31,38 @@ def generate_solution(clients_data, initial_solution,constructor_heuristic=True)
     solution['client_bandwidth'] = clients_data[:, 2]
 
     if constructor_heuristic:
-      if(initial_solution==1):
-         return initial_solution1(solution)
-      if(initial_solution==2):
-         return initial_solution2(solution)
+        return initial_solution1(solution)
+    else:
+        # CÓDIGO SERA EXECUTADO SE: constructor_heuristic=False
+        # Gerar coordenadas aleatorias para os PAs com resolução de 5 metros
+        pa_coordinates = np.random.randint(0, 80, size=(num_pa_locations, 2)) * 5  # 80 é o tamanho do grid
+        solution['pa_coordinates'] = pa_coordinates
 
-    # CÓDIGO SERA EXECUTADO SE: constructor_heuristic=False
-    # Gerar coordenadas aleatorias para os PAs com resolução de 5 metros
-    pa_coordinates = np.random.randint(0, 80, size=(num_pa_locations, 2)) * 5  # 80 é o tamanho do grid
-    solution['pa_coordinates'] = pa_coordinates
+        # Ativa aleatoriamente um número máximo de PAs
+        num_active_pas = np.random.randint(1, num_pa_locations + 1)
+        active_pas_indices = np.random.choice(num_pa_locations, num_active_pas, replace=False)
+        solution['y'][active_pas_indices] = 1
 
-    # Ativa aleatoriamente um número máximo de PAs
-    num_active_pas = np.random.randint(1, num_pa_locations + 1)
-    active_pas_indices = np.random.choice(num_pa_locations, num_active_pas, replace=False)
-    solution['y'][active_pas_indices] = 1
+        # Atribui cada cliente a um PA aleatoriamente e deixa ativo
+        for j in range(num_clients):
+            i = np.random.randint(num_pa_locations)  # Seleciona um PA aleatório
+            solution['x'][i, j] = 1  # Atribui o cliente j ao PA i
 
-    # Atribui cada cliente a um PA aleatoriamente e deixa ativo
-    for j in range(num_clients):
-        i = np.random.randint(num_pa_locations)  # Seleciona um PA aleatório
-        solution['x'][i, j] = 1  # Atribui o cliente j ao PA i
+        # Calcula a distancia entre cada cliente e cada PA ativo
+        for i in range(num_pa_locations):
+            pa_x, pa_y = pa_coordinates[i]
+            for j in range(num_clients):
+                client_x, client_y = client_coordinates[j]
+                distance = np.sqrt((pa_x - client_x) ** 2 + (pa_y - client_y) ** 2)
+                solution['client_pa_distances'][i, j] = distance
 
-    # Calcula a distancia entre cada cliente e cada PA ativo
-    for i in range(num_pa_locations):
-      pa_x, pa_y = pa_coordinates[i]
-      for j in range(num_clients):
-        client_x, client_y = client_coordinates[j]
-        distance = np.sqrt((pa_x - client_x) ** 2 + (pa_y - client_y) ** 2)
-        solution['client_pa_distances'][i, j] = distance
-
-    # Calcula a distancia entre todos os PAs
-    for i in range(num_pa_locations):
-      pa_x, pa_y = pa_coordinates[i]
-      for j in range(num_pa_locations):
-        paj_x, paj_y = pa_coordinates[j]
-        distance = np.sqrt((pa_x - paj_x) ** 2 + (pa_y - paj_y) ** 2)
-        solution['pas_distances'][i, j] = distance
+        # Calcula a distancia entre todos os PAs
+        for i in range(num_pa_locations):
+            pa_x, pa_y = pa_coordinates[i]
+            for j in range(num_pa_locations):
+                paj_x, paj_y = pa_coordinates[j]
+                distance = np.sqrt((pa_x - paj_x) ** 2 + (pa_y - paj_y) ** 2)
+                solution['pas_distances'][i, j] = distance
 
     return solution
 
@@ -91,7 +88,7 @@ def initial_solution1(solution):
     centroides_originais = np.vectorize(round_to_nearest_5)(centroides_originais)
     #print(centroides_originais)
 
-    solution['pa_coordinates'] = centroides_originais
+    solution['pa_coordinates'] = np.round(centroides_originais / 5) * 5 #arredondamento para grid 5x5 centroides_originais
 
     settle_distances_client_to_pa(solution)
 
@@ -109,7 +106,7 @@ def initial_solution1(solution):
 
     return solution
 
-def initial_solution2(clients_data, solution):
+def initial_solution2(solution):
     print("SOLUÇÃO INICIAL2")
 
     # Criar um DataFrame com as coordenadas
@@ -163,21 +160,14 @@ def settle_distances_client_to_pa(solution):
 
 # Função para manejo de clientes entre PA's
 def client_active(solution):
-    
-    client_coordinates = solution['client_coordinates']
-    active_pa_indices = []
-
     # Coletar coordenadas dos PAs ativos e seus índices originais
-    for i in range(num_pa_locations):
-        if solution['y'][i] == 1:
-            active_pa_indices.append(i)
-        if solution['y'][i] == 0:
-           solution['x'][i] = np.zeros(num_clients)
+    active_pa_indices = []
+    active_pa_indices = np.where(solution['y'] == 1)[0]
 
     # Verificar se há PAs ativos
     if len(active_pa_indices) == 0:
         print("Nenhum PA ativo.")
-        return
+        exit()
 
     # Inicializar a matriz de alocação
     solution['x'] = np.zeros((num_pa_locations, num_clients))
@@ -186,19 +176,23 @@ def client_active(solution):
 
     # Atribuir cada cliente ao PA ATIVO mais próximo
     for j in range(num_clients):
+        # Verificar se o cliente já está atribuído a um PA
+        if np.sum(solution['x'][:, j]) > 0:
+            continue  # Cliente já atribuído, pula para o próximo cliente
+
         distance_to_all_pa = solution['client_pa_distances'][:, j]
 
-        # Inicializar a menor distância e o índice do PA mais próximo
-        closest_active_pa_distance = float('inf')
-        closest_active_pa_index = -1
-        # Iterar sobre todas as distâncias e encontrar a menor distância para um PA ativo
-        for i in range(num_pa_locations):
-            if solution['y'][i] == 1:  # Verifica se o PA é ativo
-                if distance_to_all_pa[i] < closest_active_pa_distance:
-                    closest_active_pa_distance = distance_to_all_pa[i]
-                    closest_active_pa_index = i
+        active_pa_distances = distance_to_all_pa[active_pa_indices]
 
-        if(closest_active_pa_distance <= pa_coverage):
-            solution['x'][closest_active_pa_index, j] = 1 
+        # Index e valor de distância mínimo de PA ativo
+        min_distance_index = np.argmin(active_pa_distances)
+        closest_active_pa_distance = active_pa_distances[min_distance_index]
+
+        # Converter o índice filtrado de volta para o índice original em `solution['y']`
+        closest_active_pa_index = active_pa_indices[min_distance_index]
+
+        # Verifica se a distância mais próxima está dentro do limite de cobertura
+        if closest_active_pa_distance <= pa_coverage:
+                solution['x'][closest_active_pa_index, j] = 1
 
          

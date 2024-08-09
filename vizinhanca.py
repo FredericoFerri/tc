@@ -10,81 +10,68 @@ def clients_check(solution, previous_solution = None):
     else:
         client_active(solution)
 
-# Estruturas de Vizinhança
-def swap_clients_between_pas(solution): 
-    # Troca de Clientes entre PAs (Swap)
-    new_solution = solution.copy() 
+#apta para uso 
+def swap_pas(solution):
+    new_solution = copy.deepcopy(solution)
 
     #------------------------------------------------------------------
-    # (1) Selecionar aleatoriamente um de cinco PA's com maior banda utilizada
+    # (1) Selecionar aleatoriamente um de três PA's com menor quantidade de clientes
     #------------------------------------------------------------------
-    # Calcula a demanda total para cada PA, considerando apenas PAs ativos
-    demanda_total = np.zeros(num_pa_locations)
+    # Calcula o número total de clientes para cada PA, considerando apenas PAs ativos
+    total_clients = np.zeros(num_pa_locations)
     for i in range(num_pa_locations):
         if new_solution['y'][i] == 1:  # Verifica se o PA está ativo
-            demanda_total[i] = np.sum(new_solution['client_bandwidth'][new_solution['x'][i, :] == 1])
+            total_clients[i] = np.sum(new_solution['x'][i, :])
 
     # Filtra apenas os PAs ativos e seus índices
-    ativos_indices = np.where(new_solution['y'] == 1)[0]
-    ativos_demanda = demanda_total[ativos_indices]
+    active_indices = np.where(new_solution['y'] == 1)[0]
+    active_total_clients = total_clients[active_indices]
 
-    # Encontra os 5 PAs com maior demanda entre os ativos
-    top_5_indices = np.argsort(ativos_demanda)[-5:]  # Índices dos 5 maiores valores entre os ativos
-    top_5_ativos_indices = ativos_indices[top_5_indices]  # Índices dos 5 maiores valores no array original de PAs
-    top_5_demanda = ativos_demanda[top_5_indices]  # Demanda dos 5 PAs com maior demanda
+    if len(active_total_clients) >= 3:
+        # Encontra os 3 PAs ativos com menor quantidade de clientes
+        top_3_least_clients_indices = np.argsort(active_total_clients)[:3]  # Índices dos 3 menores valores entre os ativos
+        top_3_active_indices = active_indices[top_3_least_clients_indices]  # Índices dos 3 menores valores no array original de PAs
 
-    pa1_index = np.random.choice(top_5_ativos_indices) 
+        # Seleciona aleatoriamente um PA entre os 3
+        pa_to_deactivate = np.random.choice(top_3_active_indices)
+    else:
+        print("Erro! Não há PA's suficientes para operação de SWAP")
+        print("Não há PAs inativos disponíveis para ativar.")
+        print(f"solution['fitness']: {new_solution['fitness']}")
+        print(f"solution['penalty']: {new_solution['penalty']}")
+        print(f"solution['y']: {new_solution['y']}")
+        exit()
+        return solution
 
     #------------------------------------------------------------------
-    # (2) Selecionar o PA com menor demanda dentre os três mais próximos de pa1_index
+    # (2) Selecionar um PA inativo aleatório e ativar
     #------------------------------------------------------------------
-    distances = np.sqrt(np.sum((new_solution['pa_coordinates'] - new_solution['pa_coordinates'][pa1_index]) ** 2, axis=1))
+    # Filtra apenas os PAs inativos e seus índices
+    inactive_indices = np.where(new_solution['y'] == 0)[0]
 
-    ativos_indices = ativos_indices[ativos_indices != pa1_index]
-
-    # Calcula as distâncias para os PAs ativos excluindo o PA selecionado
-    distances_to_ativos = distances[ativos_indices]
-
-    # Encontra os índices dos três PAs ativos mais próximos
-    top_3_indices = np.argsort(distances_to_ativos)[:3] 
-
-    demanda_banda = np.zeros(3)
-    # Calcula a demanda de banda consumida para cada um dos 3 PAs mais próximos
-    for idx, pa in enumerate(top_3_indices):
-        demanda = np.sum(new_solution['client_bandwidth'][new_solution['x'][pa, :] == 1])
-        demanda_banda[idx] = demanda
-
-    pa_menor_demanda_idx = np.argmin(demanda_banda)
-
-    pa2_index = top_3_indices[pa_menor_demanda_idx] 
+    if len(inactive_indices) > 0:
+        # Seleciona aleatoriamente um PA inativo
+        pa_to_activate = np.random.choice(inactive_indices)
+    else:
+        print("Não há PAs inativos disponíveis para ativar.")
+        return solution
     
-    #------------------------------------------------------------------
-    # (3) escolher três clientes de pa1_index e passar para pa2_index
-    #------------------------------------------------------------------
-    clients_pa1 = np.where(new_solution['x'][pa1_index, :] == 1)[0]
-
-    # encontra os índices relativos dos três clientes
-    clients_to_pa2_relative = np.argsort(new_solution['client_pa_distances'][pa2_index, clients_pa1])[:3]
-
-    #encontra os índices dos três clientes de pa1 mais próximos de pa2
-    clients_to_pa2 = clients_pa1[clients_to_pa2_relative]
 
     #------------------------------------------------------------------
-    # (4) verificar clientes elegíveis para swap
-    #------------------------------------------------------------------
-    #Verificação de cobertura
-    clients_to_pa2 = clients_to_pa2[new_solution['client_pa_distances'][pa2_index, clients_to_pa2] <= pa_coverage]
-    
-    #swap de clientes
-    if clients_to_pa2.size > 0:
-        new_solution['x'][pa1_index, clients_to_pa2] = 0
-        new_solution['x'][pa2_index, clients_to_pa2] = 1
+    # (3) Ativar e desativar PA's selecionados
+    #------------------------------------------------------------------ 
+    new_solution['y'][pa_to_deactivate] = 0
+    new_solution['x'][pa_to_deactivate, :] = 0
+    new_solution['y'][pa_to_activate] = 1 
+
+    #settle_distance_for_single_pa(new_solution, pa_to_activate)  # Descomente se necessário
+    client_active(new_solution)  # Atualiza as alocações de clientes
 
     return new_solution
 
 def add_or_remove_pas(solution):
     # Adição ou Remoção de PAs
-    new_solution = solution.copy()  # Criar uma cópia da solução atual
+    new_solution = copy.deepcopy(solution)  # Criar uma cópia da solução atual
 
     #------------------------------------------------------------------
     # (1) Selecionar aleatoriamente um de cinco PA's com menor banda utilizada
@@ -119,11 +106,12 @@ def add_or_remove_pas(solution):
     # Encontra os índices dos três PAs ativos mais próximos
     top_3_indices = np.argsort(distances_to_ativos)[:3] 
 
-    if len(top_3_indices) == 0:
+    if len(top_3_indices) != 3:
         print(f"new_solution['fitness] = {new_solution['fitness']}")
+        print(f"solution['y']: {solution['y']}")
         print(f"distance_to_ativos = {distances_to_ativos}")
         print(f"ativos_indices = {ativos_indices}")
-
+        exit()
     else:
         demanda_banda = np.zeros(3)
         # Calcula a demanda de banda consumida para cada um dos 3 PAs mais próximos
@@ -187,7 +175,10 @@ def add_or_remove_pas(solution):
         
     else:
     #Remove PA1 e move PA2 para new_pa_coords
+        print(f"Quantidade de PA's antes de desligar PA: {np.sum(new_solution['y'])}")
+        print(f"fitness antes de desligar PA: {new_solution['fitness']}")
         new_solution['y'][pa1_index] = 0
+        new_solution['x'][pa1_index, :] = 0
         new_solution['pa_coordinates'][pa2_index] = new_pa_coords
         new_pa_index = pa2_index
 
@@ -196,9 +187,54 @@ def add_or_remove_pas(solution):
 
     return new_solution
 
+def move_pa_solution(solution):
+    new_solution = copy.deepcopy(solution)
+    num_pa_locations = len(new_solution['pa_coordinates'])
+    
+    #------------------------------------------------------------------
+    # (1) Selecionar aleatoriamente um PA ativo
+    #------------------------------------------------------------------
+    # Filtra apenas os PAs ativos e seus índices
+    active_indices = np.where(new_solution['y'] == 1)[0]
+    
+    if len(active_indices) == 0:
+        print("Erro! Não há PA's ativos suficientes para movimentação.")
+        return solution
+
+    # Seleciona aleatoriamente um PA ativo
+    pa_to_move = np.random.choice(active_indices)
+    
+    #------------------------------------------------------------------
+    # (2) Movimentar o PA selecionado sutilmente
+    #------------------------------------------------------------------
+    # Definir limites de movimentação
+    min_move_amount = 6
+    max_move_amount = 12
+    move_amount = np.random.randint(min_move_amount, max_move_amount + 1)
+    
+    # Obter as coordenadas atuais do PA
+    current_coords = new_solution['pa_coordinates'][pa_to_move]
+    
+    # Gerar deslocamento aleatório nas direções x e y
+    delta_x = np.random.randint(-move_amount, move_amount + 1)*5
+    delta_y = np.random.randint(-move_amount, move_amount + 1)*5
+    
+    # Calcular novas coordenadas
+    new_x = np.clip(current_coords[0] + delta_x, 0, 400)
+    new_y = np.clip(current_coords[1] + delta_y, 0, 400)
+    
+    # Atualizar as coordenadas do PA na nova solução
+    new_solution['pa_coordinates'][pa_to_move] = [new_x, new_y]
+    
+    # Opcional: recalcular as distâncias e atualizar alocações de clientes
+    settle_distance_for_single_pa(new_solution, pa_to_move)
+    client_active(new_solution)
+    
+    return new_solution
+
 def get_pas_closer(solution):
     # Aproxima PAs com com baixo uso de banda a PA's com alto uso de banda
-    new_solution = solution.copy()  # Criar uma cópia da solução atual
+    new_solution = copy.deepcopy(solution)  # Criar uma cópia da solução atual
 
     #------------------------------------------------------------------
     # (1) Selecionar aleatoriamente um de cinco PA's com maior banda utilizada
@@ -269,7 +305,7 @@ def get_pas_closer(solution):
     
 def shift_pa_positions(solution):
     # Movimento dos PAs (Shift)
-    new_solution = solution.copy()  # Criar uma cópia da solução atual
+    new_solution = copy.deepcopy(solution)  # Criar uma cópia da solução atual
     num_pa_locations = len(new_solution['pa_coordinates'])  # Definindo o número de PAs a partir das coordenadas
  
     #------------------------------------------------------------------
@@ -360,9 +396,9 @@ def neighborhood_change(solution, neighborhood):
   #ordem swap_clients_between_pas >> shift_pa_positions >> add_or_remove_pas
   match neighborhood:
     case 1:
-        return swap_clients_between_pas(solution) 
-    case 2:
         return shift_pa_positions(solution)
+    case 2:
+        return move_pa_solution(solution)
     case 3:
         return add_or_remove_pas(solution)
 
