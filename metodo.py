@@ -85,7 +85,13 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
         'penalty_fitness': np.zeros(max_iter)
     }
 
-    solution = construcao.generate_solution(construcao.get_clients())
+    obj_function = 0
+    if objective_function == objective_function_1:
+        obj_function = 1
+    elif objective_function == objective_function_2:
+        obj_function = 2
+
+    solution = construcao.generate_solution(construcao.get_clients(),obj_function)
     objective_function(solution, constraints)
 
     for i in range(max_iter):
@@ -97,7 +103,7 @@ def bvns_method(objective_function, constraints, construct_heuristc=False, max_i
 
       while neighborhood <= neighborhood_max:
 
-        new_solution = neighborhood_change(solution, neighborhood)
+        new_solution = neighborhood_change(solution, neighborhood,obj_function)
 
         # Avaliar a solução
         objective_function(new_solution, constraints)

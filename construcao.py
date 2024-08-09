@@ -8,7 +8,7 @@ def get_clients():
   return clients
 
 # Função para gerar uma solução qualquer
-def generate_solution(clients_data,constructor_heuristic=True):
+def generate_solution(clients_data,obj_function,constructor_heuristic=True):
     print("Gerar solucao")
     # Inicialize as variáveis de decisão
     solution = {
@@ -31,7 +31,10 @@ def generate_solution(clients_data,constructor_heuristic=True):
     solution['client_bandwidth'] = clients_data[:, 2]
 
     if constructor_heuristic:
-        return initial_solution1(solution)
+        if obj_function == 1:
+            return initial_solution1(solution)
+        elif obj_function == 2:
+            return initial_solution2(solution)
     else:
         # CÓDIGO SERA EXECUTADO SE: constructor_heuristic=False
         # Gerar coordenadas aleatorias para os PAs com resolução de 5 metros
