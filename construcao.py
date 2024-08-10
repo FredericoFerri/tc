@@ -14,6 +14,7 @@ def generate_solution(clients_data,obj_function,constructor_heuristic=True):
     solution = {
         'x': np.zeros((num_pa_locations, num_clients)),  # Variáveis de decisão para atribuição de clientes a PAs
         'y': np.zeros(num_pa_locations),  # Variáveis de decisão para ativação de PAs
+        'distances': np.zeros(0), #Soma das distâncias
         'client_coordinates': np.zeros((num_clients, num_clients)),  # Armazena as posições (x,y) de cada cliente
         'client_pa_distances': np.zeros((num_pa_locations, num_clients)),  # Armazena a distancia entre cliente e PA
         'client_bandwidth': np.zeros(num_clients), # Armazena a largura de banda necessária de cada cliente
@@ -35,6 +36,9 @@ def generate_solution(clients_data,obj_function,constructor_heuristic=True):
             return initial_solution1(solution)
         elif obj_function == 2:
             return initial_solution2(solution)
+        elif obj_function == 3:
+            return initial_solution1(solution)
+
     else:
         # CÓDIGO SERA EXECUTADO SE: constructor_heuristic=False
         # Gerar coordenadas aleatorias para os PAs com resolução de 5 metros
@@ -105,7 +109,7 @@ def initial_solution1(solution):
     # Atribuir clientes aos PA's
     client_active(solution)
 
-    plot_solution(solution)
+    #plot_solution(solution)
 
     return solution
 
@@ -141,7 +145,7 @@ def initial_solution2(solution):
     # Atribuir clientes aos PA's
     client_active(solution)
 
-    plot_solution(solution)
+    #plot_solution(solution)
 
     return solution
 

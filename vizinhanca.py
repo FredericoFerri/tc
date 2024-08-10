@@ -475,6 +475,19 @@ def neighborhood_change(solution, neighborhood, obj_function):
                 return shift_pa_positions(solution)
             case 3:
                 return move_pa_solution(solution)
+            case 4:
+                return add_or_remove_pas(solution)
+
+    elif obj_function == 3:
+        match neighborhood:
+            case 1:
+                return swap_clients_between_pas(solution)
+            case 2:
+                return shift_pa_positions(solution)
+            case 3:
+                return move_pa_solution(solution)
+            case 4:
+                return add_or_remove_pas(solution)
             
   #match neighborhood:
     #case 1:

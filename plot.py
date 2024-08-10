@@ -35,6 +35,27 @@ def cor_vibrante():
     cor_hex = "#{:02x}{:02x}{:02x}".format(r, g, b)
     return cor_hex
 
+def plot_pareto_fronts(pareto_sets, title):
+    # Criar uma nova figura
+    plt.figure(figsize=(12, 5))
+    
+    # Iterar sobre os conjuntos de soluções e plotar cada um
+    for idx, pareto_set in enumerate(pareto_sets):
+        # Ordenar por quantidade de PAs
+        pareto_set = sorted(pareto_set, key=lambda x: x[0])  
+        pas = [point[0] for point in pareto_set]
+        distances = [point[1] for point in pareto_set]
+        plt.plot(pas, distances, marker='o', label=f'Fronteira {idx + 1}')
+
+    # Adicionar legendas e título
+    plt.xlabel('Quantidade de PAs')
+    plt.ylabel('Distâncias')
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    
+    # Mostrar o gráfico
+    plt.show()
 
 # Função para plotar os PAs e os clientes em um grid
 def plot_solution(solution):

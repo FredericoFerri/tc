@@ -1,4 +1,5 @@
 from libs import *
+import globals
 
 # Restrições
 def constraint_min_clients_served(solution):
@@ -60,3 +61,10 @@ def constraint_pa_coordinates(solution):
     return np.all(pa_coordinates % 5 == 0)
 
 constraints = [constraint_min_clients_served, constraint_capacity, constraint_coverage, constraint_exposure, constraint_unique_assignment, constraint_max_pas, constraint_binary_variables, constraint_pa_coordinates]
+
+def constraint_function_1(solution):
+    # Restrição Função 1: Definir um número máximo de PAs
+    taxa_mudanca = globals.max_val1 - globals.min_val1
+    return np.sum(solution['y']) <= num_pa_locations - taxa_mudanca*globals.alpha
+
+multiconstraints = [constraint_min_clients_served, constraint_capacity, constraint_coverage, constraint_exposure, constraint_unique_assignment, constraint_max_pas, constraint_binary_variables, constraint_pa_coordinates, constraint_function_1]
